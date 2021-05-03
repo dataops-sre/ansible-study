@@ -3,16 +3,7 @@
 version: '3'
 
 env:
-  NAMESPACE: '{{default "default" .NAMESPACE}}'
-  KUBE_CONTEXT: '{{default "minikube" .KUBE_CONTEXT}}'
-  ENV: '{{default "minikube" .ENV}}'
-  DOCKER_REGISTRY: '{{default "mrmuggymuggy" .DOCKER_REGISTRY}}'
-  PROJECT_NAME: configs_store
-  COMMIT:
-    sh: git rev-parse --short HEAD
-
-vars:
-  KUBE_CONTEXT: '{{default "minikube" .KUBE_CONTEXT}}'
+  PROJECT_NAME: ansible-study
 
 tasks:
 
@@ -23,91 +14,22 @@ tasks:
 
   local.dev:
     summary: |
-      Run the app locally with docker-compose
+      Run ansible local dev with docker-compose
       eg. task local.dev
     cmds:
-      - docker-compose up --remove-orphans --abort-on-container-exit --build configs_store
+      - docker-compose run ansible-control-node
 
-  local.deploy:
+  clean:
     summary: |
-      Deploy app locally to minikube, build docker image with minikube docker env
-      eg. task local.deploy
+      Clean up infrastructure
     cmds:
-      - |
-        if minikube status | grep Running; then echo "minikube running..."; else echo "please start minikube first"; fi
-        #eval $(minikube -p minikube docker-env)
-        eval $(minikube docker-env)
-        task docker.build
-        task deploy
-
-  unit-tests:
-    summary: |
-      Run the unit-tests locally with docker-compose
-    cmds:
-      - docker-compose up --abort-on-container-exit --build configs_store_pytests
+      - docker-compose down
 
   docker.build:
     summary: |
-      Build docker image for the app
+      Build ansible control node and managed nodes
     cmds:
-      - docker build -t $DOCKER_REGISTRY/$PROJECT_NAME:$COMMIT .
-
-  deploy.mongodb:
-    summary: |
-      Deploy mongodb to kubenetes, with helm values set correspond to $ENV
-    cmds:
-      - helm repo add bitnami https://charts.bitnami.com/bitnami
-      - helm repo update
-      - >
-        helm upgrade configs-store-mongodb bitnami/mongodb
-        --install
-        --atomic
-        --cleanup-on-fail
-        --version 10.12.5
-        --wait
-        --timeout 600s
-        --values helm-values/$ENV/mongodb_helm_values.yaml
-
-  deploy.configs_store:
-    summary: |
-      Deploy application to kubenetes, with helm values set correspond to $ENV
-    cmds:
-      - >
-        helm upgrade configs-store helm-chart/configs-store
-        --set-string image.repository=$DOCKER_REGISTRY/$PROJECT_NAME
-        --set-string image.tag=$COMMIT
-        --set-string environment.SERVE_PORT=$SERVE_PORT
-        --install
-        --atomic
-        --cleanup-on-fail
-        --wait
-        --timeout 600s
-        --values helm-values/$ENV/configs_store_helm_values.yaml
-
-  deploy:
-    summary: |
-      Deploy application and mongodb to k8S
-      eg. ENV=minikube SERVE_PORT=5555 task deploy
-    cmds:
-      - task: deploy.mongodb
-      - task: deploy.configs_store
-
-  undeploy:
-    summary: |
-      Undeploy application and mongodb from k8S
-      eg. ENV=minikube task undeploy
-    cmds:
-      - helm uninstall configs-store-mongodb
-      - helm uninstall configs-store
-
-  start.minikube:
-    cmds:
-      - if minikube status | grep Running; then echo "minikube running..."; else echo "starting minikube"; minikube start; fi
-
-  set.k8s.context:
-    cmds:
-      - kubectl config set-context $KUBE_CONTEXT --namespace=$NAMESPACE
-      - kubectl config use-context $KUBE_CONTEXT --namespace=$NAMESPACE
+      - docker-compose build
 
   install_commit_hook:
     summary: |
@@ -117,13 +39,3 @@ tasks:
       - pre-commit install
       - pre-commit run --all-files
 
-  local_curl_test:
-    summary: |
-      Run some curl test locally
-      eg: TEST_URL=$(minikube service --url configs-store) task local_curl_test
-    cmds:
-      - 'curl -XPOST -i -H "Content-Type: application/json" --data @configs_store/tests/test_create.json $TEST_URL/configs'
-      -  curl -XGET -i $TEST_URL/configs
-      - 'curl -XUPDATE -i -H "Content-Type: application/json" --data @configs_store/tests/test_update.json $TEST_URL/configs/datacenter-6'
-    env:
-      TEST_URL: http://localhost:5000

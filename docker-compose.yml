@@ -1,41 +1,56 @@
-#https://github.com/bitnami/bitnami-docker-mongodb/blob/master/docker-compose.yml
-version: '2'
-
+---
+version: '3.4'
 services:
-  mongodb:
-    image: docker.io/bitnami/mongodb:4.4
-    environment:
-      MONGODB_USERNAME: configs_store
-      MONGODB_PASSWORD: password123
-      MONGODB_DATABASE: configs_store
-    ports:
-      - "27017:27017"
-
-  #for local development
-  configs_store:
+  machine-0:
+    image: "ubuntu-with-sshd:latest"
     build:
-      context: .
+      context: "."
+      dockerfile: managed_node.Dockerfile
+    networks:
+      mynet:
+        ipv4_address: 172.16.128.2
+
+  machine-1:
+    image: "ubuntu-with-sshd:latest"
+    networks:
+      mynet:
+        ipv4_address: 172.16.128.3
+
+  machine-2:
+    image: "ubuntu-with-sshd:latest"
+    networks:
+      mynet:
+        ipv4_address: 172.16.128.4
+
+  machine-3:
+    image: "ubuntu-with-sshd:latest"
+    networks:
+      mynet:
+        ipv4_address: 172.16.128.5
+
+  ansible-control-node:
     depends_on:
-      - mongodb
-    environment:
-      FLASK_ENV: development
-      SERVE_PORT: 5000
-      MONGODB_HOST: mongodb://mongodb:27017/
-      MONGODB_USERNAME: configs_store
-      MONGODB_PASSWORD: password123
-      MONGODB_DATABASE: configs_store
-
-    volumes:
-      - ${PWD}/configs_store:/configs_store
-    ports:
-      - "5000:5000"
-
-  #for local unit tests
-  configs_store_pytests:
+      - machine-3
+      - machine-2
+      - machine-1
+      - machine-0
+    image: ansible-control-node:20.04
     build:
-      context: .
-      dockerfile: Dockerfile.test
+      context: "."
+      dockerfile: control_node.Dockerfile
+    stdin_open: true # docker run -i
+    tty: true
+    entrypoint: /bin/bash
+    environment:
+      ANSIBLE_HOST_KEY_CHECKING: "False"
     volumes:
-        - .:/mnt
-    working_dir: /mnt/configs_store
-    entrypoint:  ["pytest", "-rP", "tests/"]
+        - .:/mnt 
+        - ./inventory_hosts:/etc/ansible/hosts
+    networks:
+      mynet:
+        ipv4_address: 172.16.128.100
+networks:
+  mynet:
+    ipam:
+      config:
+        - subnet: 172.16.128.0/24
