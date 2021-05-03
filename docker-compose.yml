@@ -1,0 +1,41 @@
+#https://github.com/bitnami/bitnami-docker-mongodb/blob/master/docker-compose.yml
+version: '2'
+
+services:
+  mongodb:
+    image: docker.io/bitnami/mongodb:4.4
+    environment:
+      MONGODB_USERNAME: configs_store
+      MONGODB_PASSWORD: password123
+      MONGODB_DATABASE: configs_store
+    ports:
+      - "27017:27017"
+
+  #for local development
+  configs_store:
+    build:
+      context: .
+    depends_on:
+      - mongodb
+    environment:
+      FLASK_ENV: development
+      SERVE_PORT: 5000
+      MONGODB_HOST: mongodb://mongodb:27017/
+      MONGODB_USERNAME: configs_store
+      MONGODB_PASSWORD: password123
+      MONGODB_DATABASE: configs_store
+
+    volumes:
+      - ${PWD}/configs_store:/configs_store
+    ports:
+      - "5000:5000"
+
+  #for local unit tests
+  configs_store_pytests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+        - .:/mnt
+    working_dir: /mnt/configs_store
+    entrypoint:  ["pytest", "-rP", "tests/"]
