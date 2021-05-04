@@ -43,6 +43,7 @@ services:
     entrypoint: /bin/bash
     environment:
       ANSIBLE_HOST_KEY_CHECKING: "False"
+      ANSIBLE_SCP_IF_SSH: "True"
     volumes:
         - .:/mnt 
         - ./inventory_hosts:/etc/ansible/hosts

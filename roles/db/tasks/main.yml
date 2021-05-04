@@ -1,0 +1,58 @@
+---
+# This playbook will install mysql and create db user and give permissions.
+
+- name: Install Mysql package
+  apt:
+    name:
+      - mysql-server
+      - python3-pymysql
+      - python3-selinux
+      - python3-semanage
+      - iptables
+    state: present
+
+- name: Configure SELinux to start mysql on any port
+  seboolean:
+    name: mysql_connect_any
+    state: true
+    persistent: yes
+  when: sestatus.rc != 0
+
+- name: Create Mysql configuration file
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+  notify:
+  - restart mysql
+
+- name: Start Mysql Service
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+
+# Can't set iptables inside docker 
+# - name: Allow new incoming traffic on (MYSQL)
+#   iptables:
+#     chain: INPUT
+#     protocol: tcp
+#     destination_port: "{{ mysql_port }}"
+#     ctstate: NEW
+#     syn: match
+#     jump: ACCEPT
+#     comment: Accept new MYSQL connections.
+
+- name: Create Application Database
+  mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: "{{ dbname }}"
+    state: present
+
+- name: Create Application DB User
+  mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: "{{ dbuser }}"
+    password: "{{ upassword }}"
+    priv: "*.*:ALL"
+    host: '%'
+    state: present

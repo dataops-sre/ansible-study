@@ -1,10 +1,10 @@
-FROM ubuntu:xenial
+FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y openssh-server sudo
 
 RUN echo 'root:root' | chpasswd
 
-RUN sed -ri 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN echo 'PermitRootLogin yes' > /etc/ssh/sshd_config
 
 RUN service ssh start
 

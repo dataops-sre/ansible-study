@@ -1,0 +1,41 @@
+---
+# These tasks install http and the php modules.
+
+- name: Install http and php etc
+  apt:
+    name:
+      - lighttpd
+      - php
+      - php-mysql
+      - git
+      - python3-selinux
+      - python3-semanage
+    state: present
+
+# no iptables for docker
+# - name: insert iptables rule for httpd
+#   lineinfile:
+#     dest: /etc/sysconfig/iptables
+#     create: yes
+#     state: present
+#     regexp: "{{ httpd_port }}"
+#     insertafter: "^:OUTPUT "
+#     line: "-A INPUT -p tcp  --dport {{ httpd_port }} -j  ACCEPT"
+#   notify: restart iptables
+
+- name: http service state
+  service:
+    name: lighttpd
+    state: started
+    enabled: yes
+
+- name: Configure SELinux to allow httpd to connect to remote database
+  seboolean:
+    name: httpd_can_network_connect_db
+    state: true
+    persistent: yes
+  when: sestatus.rc != 0
+
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts
