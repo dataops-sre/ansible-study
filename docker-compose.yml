@@ -24,6 +24,8 @@ services:
 
   machine-3:
     image: "ubuntu-with-sshd:latest"
+    expose:
+      - "3306"
     networks:
       mynet:
         ipv4_address: 172.16.128.5

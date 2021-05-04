@@ -4,7 +4,9 @@
 - name: Install Mysql package
   apt:
     name:
-      - mysql-server
+      - mariadb-client
+      - mariadb-common
+      - mariadb-server
       - python3-pymysql
       - python3-selinux
       - python3-semanage
@@ -24,6 +26,28 @@
     dest: /etc/my.cnf
   notify:
   - restart mysql
+
+- name: Create MariaDB Directories
+  file: path=/data/{{item}} state=directory owner=mysql group=mysql recurse=yes
+  with_items:
+    - db
+    - log
+
+- name: Count files in /data/db
+  find:
+    path=/data/db
+    patterns='\*'
+  register: db_files
+
+- name: Run mysql_install_db only if /data/db is empty
+  command: mysql_install_db --datadir=/data/db
+  when: db_files.matched|int == 0
+
+- name: replace binding
+  ansible.builtin.replace:
+    path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    regexp: '127.0.0.1'
+    replace: '0.0.0.0'
 
 - name: Start Mysql Service
   service:

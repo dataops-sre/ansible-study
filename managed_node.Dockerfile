@@ -8,6 +8,6 @@ RUN echo 'PermitRootLogin yes' > /etc/ssh/sshd_config
 
 RUN service ssh start
 
-EXPOSE 22
+EXPOSE 22, 3306
 
 CMD ["/usr/sbin/sshd","-D", "-o", "ListenAddress=0.0.0.0"]
